@@ -24,8 +24,12 @@ LDAP_SEARCH_ATTRLIST = os.environ.get('LDAP_SEARCH_ATTRLIST')
 class MyLDAPObject(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
     pass
 
+print("LDAP Server: {}@{}/{}/{}".format(LDAP_BIND_USER, LDAP_URI, LDAP_SEARCH_BASE, LDAP_SEARCH_FILTER))
+print("LDAP Attributes: {}".format(LDAP_SEARCH_ATTRLIST))
+print("Mongo: {}:{}/{}".format(MONGO_SERVER, MONGO_PORT, MONGO_DB))
+
 # initialize mongo client
-client = MongoClient(MONGO_SERVER, MONGO_PORT)
+client = MongoClient(MONGO_SERVER, int(MONGO_PORT))
 db = client[MONGO_DB]
 
 l = MyLDAPObject(LDAP_URI)
