@@ -19,14 +19,17 @@ LDAP_BIND_PASSWORD = os.environ.get('LDAP_BIND_PASSWORD')
 LDAP_SEARCH_BASE = os.environ.get('LDAP_SEARCH_BASE')
 LDAP_SEARCH_FILTER = os.environ.get('LDAP_SEARCH_FILTER')
 LDAP_SEARCH_ATTRLIST = os.environ.get('LDAP_SEARCH_ATTRLIST')
+DEBUG = os.environ.get('DEBUG', False)
 
 
 class MyLDAPObject(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
     pass
 
-print("LDAP Server: {}@{}/{}/{}".format(LDAP_BIND_USER, LDAP_URI, LDAP_SEARCH_BASE, LDAP_SEARCH_FILTER))
-print("LDAP Attributes: {}".format(LDAP_SEARCH_ATTRLIST))
-print("Mongo: {}:{}/{}".format(MONGO_SERVER, MONGO_PORT, MONGO_DB))
+if DEBUG:
+    print("LDAP Server: {}@{}/{}/{}".format(LDAP_BIND_USER, LDAP_URI, LDAP_SEARCH_BASE, LDAP_SEARCH_FILTER))
+    print("LDAP Pass: {}".format(LDAP_BIND_PASSWORD))
+    print("LDAP Attributes: {}".format(LDAP_SEARCH_ATTRLIST))
+    print("Mongo: {}:{}/{}".format(MONGO_SERVER, MONGO_PORT, MONGO_DB))
 
 # initialize mongo client
 client = MongoClient(MONGO_SERVER, int(MONGO_PORT))
