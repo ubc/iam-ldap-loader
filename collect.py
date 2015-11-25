@@ -3,6 +3,7 @@ import sys
 
 import ldap
 import ldap.resiter
+import time
 from pymongo import MongoClient
 
 from iam.hash import hash_md5
@@ -19,7 +20,8 @@ LDAP_BIND_PASSWORD = os.environ.get('LDAP_BIND_PASSWORD')
 LDAP_SEARCH_BASE = os.environ.get('LDAP_SEARCH_BASE')
 LDAP_SEARCH_FILTER = os.environ.get('LDAP_SEARCH_FILTER')
 LDAP_SEARCH_ATTRLIST = os.environ.get('LDAP_SEARCH_ATTRLIST')
-DEBUG = os.environ.get('DEBUG', False)
+DEBUG = os.environ.get('DEBUG', False) in ['true', 'True', '1', 'y', 'yes']
+SLEEP = int(os.environ.get('SLEEP', 10))
 
 
 class MyLDAPObject(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
@@ -69,6 +71,7 @@ for res_type, res_data, res_msgid, res_controls in l.allresults(msg_id):
             users = []
             sys.stdout.write(".")
             sys.stdout.flush()
+            time.sleep(SLEEP)
 
 db[USER_UPDATE_COLLECTION].insert_many(users)
 sys.stdout.write(".")
