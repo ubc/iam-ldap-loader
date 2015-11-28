@@ -36,8 +36,10 @@ if DEBUG:
 # initialize mongo client
 client = MongoClient(MONGO_SERVER, int(MONGO_PORT))
 db = client[MONGO_DB]
+db.drop_collection(USER_UPDATE_COLLECTION)
 
 l = MyLDAPObject(LDAP_URI)
+l.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 l.simple_bind_s(LDAP_BIND_USER, LDAP_BIND_PASSWORD)
 # Asynchronous search method
 msg_id = l.search(LDAP_SEARCH_BASE, ldap.SCOPE_SUBTREE, LDAP_SEARCH_FILTER, LDAP_SEARCH_ATTRLIST.split(','))
@@ -46,6 +48,8 @@ users = []
 for res_type, res_data, res_msgid, res_controls in l.allresults(msg_id):
     for dn, entry in res_data:
         # process dn and entry
+        if "uid" not in entry:
+            continue
         # print dn, entry
         if len(entry['ubcEduCwlPUID']) != 1 or len(entry.get('ubcEduStudentNumber', [])) > 1 \
                 or len(entry.get('employeeNumber', [])) > 1 or len(entry.get('mail', [])) > 1 or len(entry.get('cn', [])) > 1:
