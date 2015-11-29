@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 
@@ -18,31 +19,48 @@ LDAP_URI = os.environ.get('LDAP_URI', 'ldaps://localhost:636')
 LDAP_BIND_USER = os.environ.get('LDAP_BIND_USER')
 LDAP_BIND_PASSWORD = os.environ.get('LDAP_BIND_PASSWORD')
 LDAP_SEARCH_BASE = os.environ.get('LDAP_SEARCH_BASE')
-LDAP_SEARCH_FILTER = os.environ.get('LDAP_SEARCH_FILTER')
+LDAP_SEARCH_FILTER = os.environ.get('LDAP_SEARCH_FILTER', 'objectClass=*')
 LDAP_SEARCH_ATTRLIST = os.environ.get('LDAP_SEARCH_ATTRLIST')
 DEBUG = os.environ.get('DEBUG', False) in ['true', 'True', '1', 'y', 'yes']
 SLEEP = int(os.environ.get('SLEEP', 10))
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-s', '--salt', help='The salt for hash calculation', default=HASH_SALT)
+parser.add_argument('-l', '--ldap', help='LDAP URI', default=LDAP_URI)
+parser.add_argument('-u', '--bind', help='LDAP bind user', default=LDAP_BIND_USER)
+parser.add_argument('-p', '--password', help='LDAP bind password', default=LDAP_BIND_PASSWORD)
+parser.add_argument('-b', '--base', help='LDAP search base', default=LDAP_SEARCH_BASE)
+parser.add_argument('-f', '--filter', help='LDAP search filter', default=LDAP_SEARCH_FILTER)
+parser.add_argument('-a', '--attr', help='LDAP search attribute list, comma separated', default=LDAP_SEARCH_ATTRLIST)
+parser.add_argument('-d', '--debug', help='Debug', default=DEBUG, action='store_true')
+parser.add_argument('-e', '--sleep', help='Sleep between each bulk insert', type=int, default=SLEEP)
+parser.add_argument('-m', '--host', help='Mongo host', default=MONGO_SERVER)
+parser.add_argument('-o', '--port', help='Mongo port', default=MONGO_PORT)
+parser.add_argument('-n', '--db', help='Mongo database', default=MONGO_DB)
+
+args = parser.parse_args()
+
+
 class MyLDAPObject(ldap.ldapobject.LDAPObject, ldap.resiter.ResultProcessor):
     pass
 
-if DEBUG:
-    print("LDAP Server: {}@{}/{}/{}".format(LDAP_BIND_USER, LDAP_URI, LDAP_SEARCH_BASE, LDAP_SEARCH_FILTER))
-    print("LDAP Pass: {}".format(LDAP_BIND_PASSWORD))
-    print("LDAP Attributes: {}".format(LDAP_SEARCH_ATTRLIST))
-    print("Mongo: {}:{}/{}".format(MONGO_SERVER, MONGO_PORT, MONGO_DB))
+if args.debug:
+    print("LDAP Server: {}@{}/{}/{}".format(args.bind, args.ldap, args.base, args.filter))
+    print("LDAP Pass: {}".format(args.password))
+    print("LDAP Attributes: {}".format(args.attr))
+    print("Mongo: {}:{}/{}".format(args.host, args.port, args.db))
 
 # initialize mongo client
-client = MongoClient(MONGO_SERVER, int(MONGO_PORT))
-db = client[MONGO_DB]
+client = MongoClient(args.host, int(args.port))
+db = client[args.db]
 db.drop_collection(USER_UPDATE_COLLECTION)
 
-l = MyLDAPObject(LDAP_URI)
-l.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-l.simple_bind_s(LDAP_BIND_USER, LDAP_BIND_PASSWORD)
+l = MyLDAPObject(args.ldap)
+# l.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+l.simple_bind_s(args.bind, args.password)
 # Asynchronous search method
-msg_id = l.search(LDAP_SEARCH_BASE, ldap.SCOPE_SUBTREE, LDAP_SEARCH_FILTER, LDAP_SEARCH_ATTRLIST.split(','))
+msg_id = l.search(args.base, ldap.SCOPE_SUBTREE, args.filter, args.attr.split(','))
 
 users = []
 for res_type, res_data, res_msgid, res_controls in l.allresults(msg_id):
@@ -55,7 +73,7 @@ for res_type, res_data, res_msgid, res_controls in l.allresults(msg_id):
                 or len(entry.get('employeeNumber', [])) > 1 or len(entry.get('mail', [])) > 1 or len(entry.get('cn', [])) > 1:
             print dn, entry
             print '************************^^^^^^^^^^*************'
-        entry['edx_id'] = hash_md5(entry['ubcEduCwlPUID'][0], HASH_SALT)
+        entry['edx_id'] = hash_md5(entry['ubcEduCwlPUID'][0], args.salt)
         entry['ubcEduCwlPUID'] = entry['ubcEduCwlPUID'][0]
         entry['uid'] = entry['uid'][0]
         if 'cn' in entry:
@@ -75,7 +93,7 @@ for res_type, res_data, res_msgid, res_controls in l.allresults(msg_id):
             users = []
             sys.stdout.write(".")
             sys.stdout.flush()
-            time.sleep(SLEEP)
+            time.sleep(args.sleep)
 
 db[USER_UPDATE_COLLECTION].insert_many(users)
 sys.stdout.write(".")
