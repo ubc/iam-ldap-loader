@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 
-import ldap
 import ldap.resiter
 import time
 from pymongo import MongoClient
@@ -12,9 +11,10 @@ from iam.hash import hash_md5
 USER_COLLECTION = 'users'
 USER_UPDATE_COLLECTION = 'users_update'
 HASH_SALT = os.environ.get('HASH_SALT')
-MONGO_SERVER = os.environ.get('MONGO_SERVER', 'localhost')
-MONGO_PORT = os.environ.get('MONGO_PORT', 27017)
+MONGO_SERVER = os.environ.get('MONGO_SERVER', 'localhost:27017')
 MONGO_DB = os.environ.get('MONGO_DB', 'iam')
+MONGO_USER = os.environ.get('MONGO_USER', None)
+MONGO_PASSWORD = os.environ.get('MONGO_PASSWORD', None)
 LDAP_URI = os.environ.get('LDAP_URI', 'ldaps://localhost:636')
 LDAP_BIND_USER = os.environ.get('LDAP_BIND_USER')
 LDAP_BIND_PASSWORD = os.environ.get('LDAP_BIND_PASSWORD')
@@ -36,8 +36,10 @@ parser.add_argument('-a', '--attr', help='LDAP search attribute list, comma sepa
 parser.add_argument('-d', '--debug', help='Debug', default=DEBUG, action='store_true')
 parser.add_argument('-e', '--sleep', help='Sleep between each bulk insert', type=int, default=SLEEP)
 parser.add_argument('-m', '--host', help='Mongo host', default=MONGO_SERVER)
-parser.add_argument('-o', '--port', help='Mongo port', default=MONGO_PORT)
 parser.add_argument('-n', '--db', help='Mongo database', default=MONGO_DB)
+parser.add_argument('-w', '--mongouser', help='Mongo database user', default=MONGO_USER)
+parser.add_argument('-x', '--mongopass', help='Mongo database password', default=MONGO_PASSWORD)
+
 
 args = parser.parse_args()
 
@@ -49,11 +51,21 @@ if args.debug:
     print("LDAP Server: {}@{}/{}/{}".format(args.bind, args.ldap, args.base, args.filter))
     print("LDAP Pass: {}".format(args.password))
     print("LDAP Attributes: {}".format(args.attr))
-    print("Mongo: {}:{}/{}".format(args.host, args.port, args.db))
+    print("Mongo: {}/{}".format(args.host, args.db))
 
 # initialize mongo client
-client = MongoClient(args.host, int(args.port))
+client = MongoClient(args.host)
+# wait for pymongo to discover replicaset
+time.sleep(0.5)
+
 db = client[args.db]
+
+# authenticate if user is provided
+if args.mongouser:
+    db.authenticate(args.mongouser, args.mongopass, source='admin')
+
+print("Database connected.")
+
 db.drop_collection(USER_UPDATE_COLLECTION)
 
 l = MyLDAPObject(args.ldap)
