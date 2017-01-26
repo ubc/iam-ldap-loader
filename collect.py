@@ -52,6 +52,7 @@ if args.debug:
     print("LDAP Pass: {}".format(args.password))
     print("LDAP Attributes: {}".format(args.attr))
     print("Mongo: {}/{}".format(args.host, args.db))
+    print("Hash Salt: {}".format(args.salt))
 
 # initialize mongo client
 client = MongoClient(args.host)
@@ -85,6 +86,8 @@ for res_type, res_data, res_msgid, res_controls in l.allresults(msg_id):
                 or len(entry.get('employeeNumber', [])) > 1 or len(entry.get('mail', [])) > 1 or len(entry.get('cn', [])) > 1:
             print dn, entry
             print '************************^^^^^^^^^^*************'
+        if args.debug:
+            print("Hash base string for {} is {}.".format(entry['ubcEduCwlPUID'][0], entry['ubcEduCwlPUID'][0] + args.salt))
         entry['edx_id'] = hash_md5(entry['ubcEduCwlPUID'][0], args.salt)
         entry['ubcEduCwlPUID'] = entry['ubcEduCwlPUID'][0]
         entry['uid'] = entry['uid'][0]
